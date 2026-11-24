@@ -1,0 +1,249 @@
+================================================================================
+MUSIC RENAMING & TAGGING PIPELINE: INPUT / OUTPUT SPECIFICATION
+================================================================================
+
+This document specifies the exact data contracts and JSON structures for:
+1. INPUT: `file_list.json` (exported by Phase 0 / Scanner)
+2. OUTPUT: `rename_plan.json` (produced by any LLM or Phase 1 / Planner)
+3. PROMPT TEMPLATE: Ready-to-use prompt to feed into external LLMs
+   (ChatGPT, Claude, Gemini, DeepSeek, local models, etc.)
+
+--------------------------------------------------------------------------------
+1. INPUT SPECIFICATION: file_list.json
+--------------------------------------------------------------------------------
+Generated during Phase 0 (Scanner) and exported as a JSON array of audio file
+objects. Users can choose which attributes to include during export.
+
+Common supported music formats:
+- .mp3  : MPEG-1/2 Audio Layer 3 (ID3v1, ID3v2.3, ID3v2.4)
+- .m4a  : Apple Audio Container (AAC-LC or ALAC Apple Lossless, iTunes atoms)
+- .flac : Free Lossless Audio Codec (Vorbis Comments, native FLAC streaminfo)
+- .aac  : Advanced Audio Coding (Raw ADTS stream with ID3)
+- .dsf  : Sony Direct Stream Digital (DSD64, DSD128, DSD256 with ID3v2)
+- .wav  : Waveform Audio File Format
+- .ogg  : Ogg Vorbis
+- .opus : Ogg Opus
+
+Available Attributes / Fields:
+- "relative_path"       (string, REQUIRED): Relative path from music base directory.
+- "filename"            (string): Current base filename on disk.
+- "extension"           (string): File extension (e.g. ".mp3", ".flac", ".dsf").
+- "title"               (string): Embedded song title tag.
+- "artist"              (string): Embedded performing artist tag.
+- "album"               (string): Embedded album / release name tag.
+- "album_artist"        (string): Embedded album artist tag.
+- "year"                (string): Embedded year or release date (YYYY or YYYY-MM-DD).
+- "track_number"        (string): Embedded track index (e.g. "01", "1", "1/12").
+- "disc_number"         (string): Embedded disc number (e.g. "1", "1/2").
+- "genre"               (string): Embedded musical genre tag.
+- "composer"            (string): Embedded composer / songwriter tag.
+- "comment"             (string): Embedded comments.
+- "format"              (string): Container name ("MP3", "FLAC", "M4A", "DSF", etc.).
+- "codec"               (string): Audio stream codec (e.g. "MP3", "FLAC", "AAC", "ALAC", "DSD64").
+- "duration_formatted"  (string): Duration in mm:ss or hh:mm:ss format.
+- "duration_seconds"    (float) : Duration in raw seconds.
+- "bitrate_kbps"        (int)   : Bitrate in kbps (e.g. 320, 1411, 5645).
+- "sample_rate_hz"      (int)   : Sample rate in Hz (e.g. 44100, 96000, 2822400).
+- "bits_per_sample"     (int)   : Audio bit depth (e.g. 16, 24, 1 for DSD).
+- "channels"            (int)   : Channel count (1=Mono, 2=Stereo, 6=5.1).
+- "channel_layout"      (string): Human-readable layout ("Stereo", "Mono").
+- "codec_details"       (string): Technical summary (e.g. "DSD64 (1-bit / 2.8224 MHz)").
+- "file_size_formatted" (string): Human-readable file size (e.g. "45.20 MB").
+
+Example file_list.json:
+[
+  {
+    "relative_path": "Pink Floyd/The Dark Side of the Moon/01_speak_to_me.dsf",
+    "filename": "01_speak_to_me.dsf",
+    "extension": ".dsf",
+    "title": "Speak to Me",
+    "artist": "Pink Floyd",
+    "album": "The Dark Side of the Moon",
+    "year": "1973",
+    "track_number": "1",
+    "genre": "Progressive Rock",
+    "format": "DSF",
+    "codec": "DSD64",
+    "bitrate_kbps": 5645,
+    "sample_rate_hz": 2822400,
+    "bits_per_sample": 1,
+    "duration_formatted": "01:05",
+    "codec_details": "DSD64 (1-bit / 2.8224 MHz)"
+  },
+  {
+    "relative_path": "Queen/A Night at the Opera/Queen - Bohemian Rhapsody (2011 Remaster).flac",
+    "filename": "Queen - Bohemian Rhapsody (2011 Remaster).flac",
+    "extension": ".flac",
+    "title": "Bohemian Rhapsody",
+    "artist": "Queen",
+    "album": "A Night at the Opera",
+    "year": "1975",
+    "track_number": "11",
+    "genre": "Rock",
+    "format": "FLAC",
+    "codec": "FLAC",
+    "bitrate_kbps": 980,
+    "sample_rate_hz": 96000,
+    "bits_per_sample": 24,
+    "duration_formatted": "05:54",
+    "codec_details": "FLAC 24-bit / 96.0 kHz Lossless"
+  },
+  {
+    "relative_path": "Downloads/04-daft_punk_feat_pharrell_williams-get_lucky-320kbps.mp3",
+    "filename": "04-daft_punk_feat_pharrell_williams-get_lucky-320kbps.mp3",
+    "extension": ".mp3",
+    "title": "Get Lucky",
+    "artist": "Daft Punk ft. Pharrell Williams",
+    "album": "Random Access Memories",
+    "year": "2013",
+    "track_number": "4",
+    "genre": "Electronic",
+    "format": "MP3",
+    "codec": "MP3",
+    "bitrate_kbps": 320,
+    "sample_rate_hz": 44100,
+    "bits_per_sample": 16,
+    "duration_formatted": "06:09",
+    "codec_details": "MPEG Layer 3 (320 kbps / 44.1 kHz)"
+  }
+]
+
+--------------------------------------------------------------------------------
+2. OUTPUT SPECIFICATION: rename_plan.json
+--------------------------------------------------------------------------------
+The checkpoint and execution plan file expected by Phase 2 (Validator & Applier).
+Can be a JSON array of plan objects or a JSON dictionary keyed by `old_path`.
+
+Each item in `rename_plan.json` contains:
+- "old_path"           (string, REQUIRED): MUST exactly match the input "relative_path".
+- "new_name"           (string, REQUIRED): Standardized target filename including extension.
+                       CRITICAL: Must preserve original file extension (.mp3, .flac, .dsf, etc.).
+- "final_destination"  (string, OPTIONAL): Relative destination path under the music base directory.
+                       If omitted, automatically defaults to {parent_dir}/{new_name}.
+- "reasoning"          (string, REQUIRED): Chain-of-thought explanation of parsing and rules applied.
+- "confidence"         (string, REQUIRED): "high", "medium", or "low".
+                       * "high"   : Auto-appliable without user intervention.
+                       * "medium" : Requires user review or --apply-medium flag.
+                       * "low"    : Ambiguous or missing tags, flagged for manual triage.
+- "new_tags"           (object, OPTIONAL): Proposed cleaned tags to write to the audio file on disk:
+                       * "artist"       : string
+                       * "title"        : string
+                       * "album"        : string
+                       * "album_artist" : string
+                       * "year"         : string (YYYY or YYYY-MM-DD)
+                       * "track_number" : string (2-digit padded: "01", "02")
+                       * "disc_number"  : string
+                       * "genre"        : string
+
+Example rename_plan.json:
+[
+  {
+    "old_path": "Pink Floyd/The Dark Side of the Moon/01_speak_to_me.dsf",
+    "reasoning": "Removed underscores, padded track number to '01'. Preserved DSD .dsf extension.",
+    "new_name": "01 - Pink Floyd - Speak to Me.dsf",
+    "final_destination": "Pink Floyd/The Dark Side of the Moon/01 - Pink Floyd - Speak to Me.dsf",
+    "confidence": "high",
+    "new_tags": {
+      "artist": "Pink Floyd",
+      "title": "Speak to Me",
+      "album": "The Dark Side of the Moon",
+      "track_number": "01",
+      "year": "1973",
+      "genre": "Progressive Rock"
+    }
+  },
+  {
+    "old_path": "Queen/A Night at the Opera/Queen - Bohemian Rhapsody (2011 Remaster).flac",
+    "reasoning": "Standardized to '{Track} - {Artist} - {Title}.flac'. Removed redundant remaster tag from title.",
+    "new_name": "11 - Queen - Bohemian Rhapsody.flac",
+    "final_destination": "Queen/A Night at the Opera/11 - Queen - Bohemian Rhapsody.flac",
+    "confidence": "high",
+    "new_tags": {
+      "artist": "Queen",
+      "title": "Bohemian Rhapsody",
+      "album": "A Night at the Opera",
+      "track_number": "11",
+      "year": "1975",
+      "genre": "Rock"
+    }
+  },
+  {
+    "old_path": "Downloads/04-daft_punk_feat_pharrell_williams-get_lucky-320kbps.mp3",
+    "reasoning": "Standardized feat notation, removed bitrate suffix '-320kbps', padded track number.",
+    "new_name": "04 - Daft Punk ft. Pharrell Williams - Get Lucky.mp3",
+    "final_destination": "Downloads/04 - Daft Punk ft. Pharrell Williams - Get Lucky.mp3",
+    "confidence": "high",
+    "new_tags": {
+      "artist": "Daft Punk ft. Pharrell Williams",
+      "title": "Get Lucky",
+      "album": "Random Access Memories",
+      "track_number": "04",
+      "year": "2013",
+      "genre": "Electronic"
+    }
+  }
+]
+
+--------------------------------------------------------------------------------
+3. COPY-PASTE PROMPT TEMPLATE FOR EXTERNAL LLMS
+--------------------------------------------------------------------------------
+Copy and paste the prompt below into ChatGPT, Claude, Gemini, or DeepSeek along
+with your exported `file_list.json`:
+
+```markdown
+You are an expert music tagging and audio file renaming assistant.
+Your task is to standardize messy music file names and metadata tags into clean,
+consistent naming conventions.
+
+### NAMING FORMAT CONVENTIONS:
+1. Target filename format: "{Track} - {Artist} - {Title}.{ext}"
+   - If Track number is known, always pad to 2 digits (e.g. "01", "02", "12").
+   - If Track number is unknown, use: "{Artist} - {Title}.{ext}".
+   - Preserve clean spacing around hyphens (" - ").
+2. Clean Title & Artist:
+   - Remove messy rip tags like "[320kbps]", "[FLAC]", "[Remastered 2011]", "(Official Audio)", web URLs.
+   - Standardize featuring artists to "ft. Artist" or "feat. Artist".
+3. CRITICAL: Preserve the exact original file extension (.mp3, .flac, .m4a, .aac, .dsf, .wav).
+4. If ambiguous or missing information, do your best sensible formatting and set "confidence" to "medium" or "low".
+
+### INPUT:
+Here is the JSON list of music files:
+<PASTE YOUR file_list.json CONTENT HERE>
+
+### OUTPUT REQUIREMENT:
+Output a single valid JSON array strictly conforming to the following structure:
+[
+  {
+    "old_path": "<exact relative_path from input>",
+    "reasoning": "<brief explanation of naming and tag changes>",
+    "new_name": "<new standardized filename with extension preserved>",
+    "confidence": "high" | "medium" | "low",
+    "new_tags": {
+      "artist": "<cleaned artist>",
+      "title": "<cleaned title>",
+      "album": "<album name>",
+      "track_number": "<2-digit track e.g. 01>",
+      "year": "<4-digit year>"
+    }
+  }
+]
+Do not wrap in explanatory conversational text. Output pure JSON.
+```
+
+--------------------------------------------------------------------------------
+4. LOADING EXTERNAL PLANS BACK INTO THE PIPELINE
+--------------------------------------------------------------------------------
+Once the external LLM generates the output:
+1. Save the JSON output as `data/rename_plan.json` (or any `.json` file).
+2. In the GUI:
+   - Go to Tab "2. AI Renamer • Plan Editor".
+   - Click "Import Plan JSON..." and select your saved file.
+   - All proposed names, confidence scores, and new tags will be loaded,
+     validated for collisions/illegal characters, and displayed in the table.
+3. In CLI:
+   - Run: `python apply.py "/path/to/music" --plan "my_plan.json"` (dry-run preview)
+   - Run: `python apply.py "/path/to/music" --plan "my_plan.json" --execute` (executes renames & writes tags)
+4. Phase 4 Verification:
+   - Automatically runs after execution to ensure all files and audio tags exist
+     properly on disk and produces a `verification_report.json`.
+================================================================================

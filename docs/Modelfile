@@ -1,0 +1,18 @@
+# Custom Modelfile for Local LLM Batch Movie Renamer
+# Base: richardyoung/qwen3-14b-abliterated:Q4_K_M
+FROM richardyoung/qwen3-14b-abliterated:Q4_K_M
+
+# Mandatory Qwen3 + CPU Inference Settings
+# Prevent repetition loops (never use temperature: 0)
+PARAMETER temperature 0.3
+PARAMETER top_p 0.95
+
+# Context window: 8192 as specified in project spec, allowing large rules doc + full batch generation
+PARAMETER num_ctx 8192
+
+# CPU Thread configuration (8 threads for balanced speed without desktop starvation)
+PARAMETER num_thread 8
+
+# Stop sequences for Qwen
+PARAMETER stop "<|im_end|>"
+PARAMETER stop "<|endoftext|>"

@@ -1,0 +1,36 @@
+### Music File Renaming & Tagging Guidelines
+
+1. STANDARD FILENAME CONVENTIONS:
+   - For album tracks with track numbers:
+     "{Track} - {Artist} - {Title}.{ext}"
+     Example: "01 - Pink Floyd - Speak to Me.dsf"
+     Example: "04 - Queen - You're My Best Friend.flac"
+   - For standalone tracks without track numbers:
+     "{Artist} - {Title}.{ext}"
+     Example: "Daft Punk ft. Pharrell Williams - Get Lucky.mp3"
+
+2. TRACK NUMBER FORMATTING:
+   - Pad track numbers to 2 digits (e.g. 1 -> "01", 9 -> "09", 12 -> "12").
+   - If multi-disc release, format as: "{Disc}.{Track}" (e.g. "1.01", "2.05").
+
+3. ARTIST & FEATURING STANDARDIZATION:
+   - Use "ft." or "feat." consistently for guest artists:
+     Example: "Eminem ft. Rihanna - The Monster.m4a"
+   - De-duplicate redundant artist names if repeated in folder and filename.
+
+4. CLEANING SCENE & WEB ARTIFACTS:
+   - Strip bitrate tags: "[320kbps]", "[128k]", "(256kbps)"
+   - Strip website promo watermarks: "www.mp3vault.com", "FreeMusic - "
+   - Strip redundant codec flags: "[FLAC]", "[FLAC 24-96]", "[DSD64]" (except when required in archiving rules)
+   - Strip redundant rip suffixes: "(Official Music Video)", "(Audio)", "(Lyric Video)"
+
+5. CAPITALIZATION:
+   - Use standard Title Case for English track titles:
+     Capitalize first letter of major words; lowercase short articles and prepositions (a, an, the, in, on, of, for) unless first word.
+
+6. EXTENSION PRESERVATION:
+   - Always preserve the exact original audio extension (.mp3, .flac, .m4a, .aac, .dsf, .wav, .ogg, .opus).
+   - Never convert or alter file extensions.
+
+7. COMPANION FILES:
+   - Keep associated .lrc (lyrics), .cue (cue sheet), and track artwork in sync with the audio file.
